@@ -15,17 +15,27 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    console.log('A user connected');
-    socket.on('disconnect', () => {
-      console.log('user disconnected');
- });
-});
+  console.log('A user connected');
 
-io.on('connection', (socket) => {
   socket.on('chat message', (msg) => {
     console.log('message: ' + msg);
   });
+
+  socket.on('disconnect', () => {
+    console.log('user disconnected');
+  });
 });
+
+io.emit('hello', 'world');
+
+io.on('connection', (socket) => {
+  socket.broadcast.emit('hi');
+
+    socket.on('chat message', (msg) => {
+      io.emit('chat message', msg);
+  });
+});
+
 
 server.listen(3000, () => {
     console.log('Server is running on http://localhost:3000');
