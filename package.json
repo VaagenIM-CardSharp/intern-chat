@@ -4,7 +4,10 @@
     "description": "intern chat mellom ansatte",
     "type": "module",
     "dependencies": {
+        "@socket.io/cluster-adapter": "^0.3.0",
         "express": "^4.21.2",
-        "socket.io": "^4.8.1"
+        "socket.io": "^4.8.1",
+        "sqlite": "^5.1.1",
+        "sqlite3": "^5.1.7"
     }
 }
