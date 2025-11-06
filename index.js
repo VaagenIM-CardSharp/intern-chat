@@ -10,19 +10,20 @@ import cluster from 'node:cluster';
 import { createAdapter, setupPrimary } from '@socket.io/cluster-adapter';
 
 if (cluster.isPrimary) {
+  setupPrimary();
+
   const numCPUs = availableParallelism();
   for (let i = 0; i < numCPUs; i++) {
-    cluster.fork({
-      PORT: 3000 + i
-    });
+    cluster.fork();
   }
-
-  setupPrimary();
 } else {
   const db = await open({
     filename: 'chat.db',
     driver: sqlite3.Database
   });
+
+  await db.exec('PRAGMA journal_mode = WAL;');
+  await db.exec('PRAGMA busy_timeout = 5000;');
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS messages (
@@ -41,42 +42,132 @@ if (cluster.isPrimary) {
 
   const __dirname = dirname(fileURLToPath(import.meta.url));
 
+  app.use(express.static(__dirname));
+
   app.get('/', (req, res) => {
     res.sendFile(join(__dirname, 'index.html'));
   });
 
   io.on('connection', async (socket) => {
     socket.on('chat message', async (msg, clientOffset, callback) => {
-      let result;
+      const ack =
+        typeof callback === 'function'
+          ? callback
+          : () => {};
+
       try {
-        result = await db.run('INSERT INTO messages (content, client_offset) VALUES (?, ?)', msg, clientOffset);
+        const result = await db.run(
+          'INSERT INTO messages (content, client_offset) VALUES (?, ?)',
+          msg,
+          clientOffset
+        );
+
+        const payload = {
+          id: result.lastID,
+          content: msg
+        };
+
+        io.emit('chat message', payload);
+        ack({ ok: true, serverOffset: result.lastID });
       } catch (e) {
-        if (e.errno === 19 /* SQLITE_CONSTRAINT */ ) {
-          callback();
+        if (e.errno === 19 /* SQLITE_CONSTRAINT */) {
+          try {
+            const existing = await db.get(
+              'SELECT id FROM messages WHERE client_offset = ?',
+              clientOffset
+            );
+
+            if (existing) {
+              ack({
+                ok: true,
+                duplicate: true,
+                serverOffset: existing.id
+              });
+            } else {
+              ack({
+                ok: false,
+                error: 'MESSAGE_EXISTS_NO_ID'
+              });
+            }
+          } catch (lookupError) {
+            console.error('Failed to fetch existing message id', lookupError);
+            ack({
+              ok: false,
+              error: 'DUPLICATE_LOOKUP_FAILED'
+            });
+          }
         } else {
-          // nothing to do, just let the client retry
+          console.error('Failed to persist chat message', {
+            error: e,
+            clientOffset
+          });
+          ack({
+            ok: false,
+            error: 'INTERNAL_ERROR'
+          });
         }
-        return;
       }
-      io.emit('chat message', msg, result.lastID);
-      callback();
     });
 
     if (!socket.recovered) {
+      const rawOffset = socket.handshake.auth?.serverOffset ?? 0;
+      const serverOffset = Number(rawOffset) || 0;
+
       try {
-        await db.each('SELECT id, content FROM messages WHERE id > ?',
-          [socket.handshake.auth.serverOffset || 0],
-          (_err, row) => {
-            socket.emit('chat message', row.content, row.id);
-          }
-        )
+        const rows = await db.all(
+          `
+            SELECT id, content
+            FROM messages
+            WHERE id > ?
+            ORDER BY id ASC
+            LIMIT 500
+          `,
+          serverOffset
+        );
+
+        for (const row of rows) {
+          socket.emit('chat message', {
+            id: row.id,
+            content: row.content
+          });
+        }
       } catch (e) {
-        // something went wrong
+        console.error('Failed to replay missed messages', e);
       }
     }
   });
 
-  const port = process.env.PORT;
+  const port = Number(process.env.PORT) || 3000;
+
+  const shuttingDown = {
+    active: false
+  };
+
+  const initiateShutdown = (signal) => {
+    if (shuttingDown.active) {
+      return;
+    }
+
+    shuttingDown.active = true;
+    console.log(`${signal} received. Gracefully shutting down...`);
+
+    server.close(async (closeErr) => {
+      if (closeErr) {
+        console.error('Error while closing HTTP server', closeErr);
+      }
+
+      try {
+        await db.close();
+      } catch (dbErr) {
+        console.error('Error while closing SQLite connection', dbErr);
+      } finally {
+        process.exit(closeErr ? 1 : 0);
+      }
+    });
+  };
+
+  process.on('SIGTERM', initiateShutdown);
+  process.on('SIGINT', initiateShutdown);
 
   server.listen(port, () => {
     console.log(`server running at http://localhost:${port}`);
