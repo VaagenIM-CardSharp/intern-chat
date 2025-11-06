@@ -24,7 +24,8 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
       let counter = 0;
-  
+      const MAX_MESSAGES = 500;
+
       const socket = io({
         ackTimeout: 10000,
         retries: 3,
@@ -32,26 +33,66 @@
           serverOffset: 0
         }
       });
-  
+
       const form = document.getElementById('form');
       const input = document.getElementById('input');
       const messages = document.getElementById('messages');
-  
+
+      const appendMessage = (content) => {
+        const item = document.createElement('li');
+        item.textContent = content;
+        messages.appendChild(item);
+
+        while (messages.children.length > MAX_MESSAGES) {
+          messages.removeChild(messages.firstChild);
+        }
+
+        window.scrollTo(0, document.body.scrollHeight);
+      };
+
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (input.value) {
-          const clientOffset = `${socket.id}-${counter++}`;
-          socket.emit('chat message', input.value, clientOffset);
-          input.value = '';
+
+        const text = input.value.trim();
+        if (!text) {
+          return;
         }
+
+        const clientOffset = `${socket.id}-${counter++}`;
+        socket.emit(
+          'chat message',
+          text,
+          clientOffset,
+          (ack = {}) => {
+            if (!ack.ok) {
+              console.error('Message acknowledgement failed', ack);
+              return;
+            }
+
+            if (typeof ack.serverOffset === 'number') {
+              socket.auth.serverOffset = ack.serverOffset;
+            }
+          }
+        );
+
+        input.value = '';
       });
-  
-      socket.on('chat message', (msg, serverOffset) => {
-        const item = document.createElement('li');
-        item.textContent = msg;
-        messages.appendChild(item);
-        window.scrollTo(0, document.body.scrollHeight);
-        socket.auth.serverOffset = serverOffset;
+
+      socket.on('chat message', (payload) => {
+        if (!payload || typeof payload !== 'object') {
+          return;
+        }
+
+        const { id, content } = payload;
+        if (typeof content !== 'string') {
+          return;
+        }
+
+        appendMessage(content);
+
+        if (typeof id === 'number') {
+          socket.auth.serverOffset = id;
+        }
       });
     </script>
   </body>
