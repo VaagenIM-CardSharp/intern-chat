@@ -1,3 +1,5 @@
+# Automatisering av utrulling av nettstedet med Docker og GitHub Actions
+
 ## Prosjektbeskrivelse
 Det ble laget en nettapplikasjon – en chat bygget på Node.js med Socket.IO og SQLite-database. Applikasjonen lar brukere utveksle meldinger i sanntid via nettleseren, mens chat-historikken lagres lokalt i SQLite.
 
@@ -60,3 +62,22 @@ Kommandoen bygger imaget, starter tjenestene og kobler til nginx-proxien definer
 ## Resultat
 - Chat-applikasjonen kjører på en Ubuntu-server.
 - Hele CI/CD-kjeden er satt opp: hver kodeendring fører til automatisk utrulling uten manuelle steg.
+
+## Kompetansemål
+- **Driftsstøtte**: Prosjektet dekker sentrale oppgaver innen planlegging, drift og sikring av tjenester.
+  - `utforske og beskrive komponenter i en driftsarkitektur` – Docker-compose, nginx-proxy og self-hosted runner er dokumentert i README, slik at arkitekturen mellom klient, server, database og CI/CD er tydelig beskrevet.
+  - `planlegge og dokumentere arbeidsprosesser og IT-løsninger` – README viser stegvis prosess for bygging, utrulling og feilhåndtering, noe som fungerer som driftsdokumentasjon.
+  - `gjøre rede for prinsipper og strukturer for skytjenester og virtuelle tjenester` – Publisering av Docker-images til GHCR og bruk av virtuelle containere på Ubuntu-server demonstrerer praktisk forståelse av virtuelle tjenester.
+  - `planlegge, drifte og implementere IT-løsninger som ivaretar informasjonssikkerhet og gjeldende regelverk for personvern` – Bruk av GitHub Secrets og miljøvariabler beskytter nøkler og tilgangsdata gjennom hele pipeline.
+
+- **Brukerstøtte**: Løsningen er testet på ekte brukere, og dokumentasjonen hjelper andre å ta den i bruk.
+  - `utøve brukerstøtte og veilede i relevant programvare` – README gir klare instruksjoner for lokal kjøring og Docker-oppstart slik at nye brukere kan sette opp løsningen uten hjelp.
+  - `kartlegge behovet for og utvikle veiledninger for brukere og kunder` – Tilbakemeldinger fra klassekamerater førte til begrensning på 500 tegn og forklaringer på hvordan klienten håndterer overliggende meldinger.
+  - `bruke og administrere samhandlingsverktøy som effektiviserer samarbeid og deling av informasjon` – GitHub brukes aktivt til versjonskontroll, issues og CI/CD, noe som sikrer kontinuerlig deling av status og endringer.
+  - `beskrive og bruke rammeverk for kvalitetssikring av IT-drift` – GitHub Actions fungerer som automatisert kvalitetskontroll ved hver push, med faste steg for bygg, publisering og deploy.
+
+- **Utvikling**: Koden dekker hele utviklingsløpet fra krav til database og distribusjon.
+  - `lage og begrunne funksjonelle krav til en IT-løsning basert på behovskartlegging` – Prosjektet adresserer behovet for sanntidssamtaler og automatisk utrulling, formulert i mål- og arbeidsflytseksjonene.
+  - `gjøre rede for hensikten med teknisk dokumentasjon og utarbeide teknisk dokumentasjon for IT-løsninger` – README fungerer som teknisk dokumentasjon for arkitektur, bygg og drift.
+  - `beskrive og anvende relevante versjonskontrollsystemer i utviklingsprosjekter` – GitHub-repoet med workflows viser hvordan commits trigger bygg og deploy.
+  - `modellere og opprette databaser for informasjonsflyt i systemer` – SQLite-databasen (`chat.db`) lagrer meldingshistorikk, med tabellstruktur og opprydding implementert i `index.js`.
