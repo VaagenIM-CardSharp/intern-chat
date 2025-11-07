@@ -4,3 +4,5 @@ chat.db
 
 chat.db-shm
 chat.db-wal
+chat.db-shm
+chat.db-wal

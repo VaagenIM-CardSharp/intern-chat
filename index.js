@@ -1,13 +1,26 @@
 import express from 'express';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { Server } from 'socket.io';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import { availableParallelism } from 'node:os';
 import cluster from 'node:cluster';
 import { createAdapter, setupPrimary } from '@socket.io/cluster-adapter';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const resolveDbPath = () => {
+  const customPath = process.env.CHAT_DB_PATH;
+
+  if (!customPath) {
+    return join(__dirname, 'chat.db');
+  }
+
+  return isAbsolute(customPath) ? customPath : join(__dirname, customPath);
+};
 
 if (cluster.isPrimary) {
   setupPrimary();
@@ -17,8 +30,10 @@ if (cluster.isPrimary) {
     cluster.fork();
   }
 } else {
+  const dbFilePath = resolveDbPath();
+
   const db = await open({
-    filename: 'chat.db',
+    filename: dbFilePath,
     driver: sqlite3.Database
   });
 
@@ -39,8 +54,6 @@ if (cluster.isPrimary) {
     connectionStateRecovery: {},
     adapter: createAdapter()
   });
-
-  const __dirname = dirname(fileURLToPath(import.meta.url));
 
   app.use(express.static(__dirname));
 
@@ -137,7 +150,8 @@ if (cluster.isPrimary) {
     }
   });
 
-  const port = Number(process.env.PORT) || 3000;
+  const PORT = Number(process.env.PORT) || 3000;
+  const HOST = process.env.HOST || '0.0.0.0';
 
   const shuttingDown = {
     active: false
@@ -169,7 +183,7 @@ if (cluster.isPrimary) {
   process.on('SIGTERM', initiateShutdown);
   process.on('SIGINT', initiateShutdown);
 
-  server.listen(port, () => {
-    console.log(`server running at http://localhost:${port}`);
+  server.listen(PORT, HOST, () => {
+    console.log(`server running at http://${HOST}:${PORT}`);
   });
 }

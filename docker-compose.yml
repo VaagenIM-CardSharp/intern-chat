@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - CHAT_DB_PATH=storage/chat.db
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+    volumes:
+      - chat-data:/usr/src/app/storage
+    restart: unless-stopped
+
+volumes:
+  chat-data:

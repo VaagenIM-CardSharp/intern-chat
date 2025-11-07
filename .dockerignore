@@ -1,0 +1,7 @@
+node_modules
+npm-debug.log
+chat.db
+chat.db-shm
+chat.db-wal
+.git
+.gitignore
