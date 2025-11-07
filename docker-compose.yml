@@ -1,18 +1,16 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/liena-grytsyna/intern-chat:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
     environment:
+      - NODE_ENV=production
       - PORT=3000
       - HOST=0.0.0.0
       - CHAT_DB_PATH=storage/chat.db
-      - NODE_ENV=production
-    ports:
-      - "3000:3000"
     volumes:
       - chat-data:/usr/src/app/storage
-    restart: unless-stopped
 
 volumes:
   chat-data:
