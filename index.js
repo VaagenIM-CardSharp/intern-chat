@@ -69,19 +69,15 @@ const MAX_MESSAGE_LENGTH = (() => {
 
 app.use(express.static(__dirname));
 
-app.get('/config.js', (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.type('application/javascript');
-  res.send(
-    `window.__APP_CONFIG__ = Object.freeze({ maxMessageLength: ${MAX_MESSAGE_LENGTH} });`
-  );
-});
-
 app.get('/', (req, res) => {
   res.sendFile(join(__dirname, 'index.html'));
 });
 
 io.on('connection', async (socket) => {
+  socket.emit('config', {
+    maxMessageLength: MAX_MESSAGE_LENGTH
+  });
+
   socket.on('chat message', async (msg, clientOffset, callback) => {
     const ack =
       typeof callback === 'function'

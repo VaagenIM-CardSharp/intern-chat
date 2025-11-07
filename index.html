@@ -24,205 +24,229 @@
     <form id="form" action="">
       <input id="input" autocomplete="off" /><button>Send</button>
     </form>
-    <script src="/config.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
-      let counter = 0;
-      const MAX_MESSAGES = 500;
-      const DEFAULT_MAX_MESSAGE_LENGTH = 500;
-      let nickname = '';
+  let counter = 0;
+  const MAX_MESSAGES = 500;
+  const DEFAULT_MAX_MESSAGE_LENGTH = 500;
+  let nickname = '';
+  let activeMaxMessageLength = DEFAULT_MAX_MESSAGE_LENGTH;
 
-      const resolveMaxMessageLength = () => {
-        const fromConfig = window.__APP_CONFIG__?.maxMessageLength;
-        if (Number.isInteger(fromConfig) && fromConfig > 0) {
-          return fromConfig;
-        }
+  const socket = io({
+    ackTimeout: 10000,
+    retries: 3,
+    auth: {
+      serverOffset: 0
+    }
+  });
 
-        return DEFAULT_MAX_MESSAGE_LENGTH;
-      };
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const messages = document.getElementById('messages');
+  const nicknameForm = document.getElementById('nickname-form');
+  const nicknameInput = document.getElementById('nickname');
+  const nicknameDisplay = document.getElementById('nickname-display');
+  const sendButton = form?.querySelector('button');
+  const limitWarning = document.getElementById('message-limit-warning');
 
-      const socket = io({
-        ackTimeout: 10000,
-        retries: 3,
-        auth: {
-          serverOffset: 0
-        }
-      });
+  const getMaxMessageLength = () => activeMaxMessageLength;
 
-      const form = document.getElementById('form');
-      const input = document.getElementById('input');
-      const messages = document.getElementById('messages');
-      const nicknameForm = document.getElementById('nickname-form');
-      const nicknameInput = document.getElementById('nickname');
-      const nicknameDisplay = document.getElementById('nickname-display');
-      const sendButton = form?.querySelector('button');
-      const limitWarning = document.getElementById('message-limit-warning');
-      const MAX_MESSAGE_LENGTH = resolveMaxMessageLength();
+  const formatLimitMessage = (limit) =>
+    `Message cannot exceed ${limit} characters.`;
 
-      const setLimitWarning = (message = '') => {
-        if (!limitWarning) {
-          return;
-        }
+  const setLimitWarning = (message = '') => {
+    if (!limitWarning) {
+      return;
+    }
 
-        if (message) {
-          limitWarning.textContent = message;
-          limitWarning.classList.remove('hidden');
-        } else {
-          limitWarning.textContent = '';
-          limitWarning.classList.add('hidden');
-        }
-      };
+    if (message) {
+      limitWarning.textContent = message;
+      limitWarning.classList.remove('hidden');
+    } else {
+      limitWarning.textContent = '';
+      limitWarning.classList.add('hidden');
+    }
+  };
 
-      const updateMessageValidity = (value = '') => {
-        if (!input) {
-          return;
-        }
+  const updateMessageValidity = (value = '') => {
+    if (!input) {
+      return;
+    }
 
-        const message =
-          `Message cannot exceed ${MAX_MESSAGE_LENGTH} characters.`;
-        const isTooLong = value.length > MAX_MESSAGE_LENGTH;
+    const limit = getMaxMessageLength();
+    const message = formatLimitMessage(limit);
+    const isTooLong = value.length > limit;
 
-        if (isTooLong) {
-          input.setCustomValidity(message);
-          setLimitWarning(message);
-        } else {
-          input.setCustomValidity('');
-          setLimitWarning('');
-        }
-      };
+    if (isTooLong) {
+      input.setCustomValidity(message);
+      setLimitWarning(message);
+    } else {
+      input.setCustomValidity('');
+      setLimitWarning('');
+    }
+  };
+
+  const setMaxMessageLength = (value) => {
+    if (!Number.isInteger(value) || value <= 0) {
+      return;
+    }
+
+    if (value === activeMaxMessageLength) {
+      return;
+    }
+
+    activeMaxMessageLength = value;
+    updateMessageValidity(input?.value ?? '');
+  };
+
+  if (input) {
+    input.addEventListener('input', () => updateMessageValidity(input.value));
+    updateMessageValidity(input.value);
+  }
+
+  const toggleChatControls = (enabled) => {
+    if (input) {
+      input.disabled = !enabled;
+    }
+
+    if (sendButton) {
+      sendButton.disabled = !enabled;
+    }
+  };
+
+  toggleChatControls(false);
+
+  const appendMessage = (content) => {
+    const item = document.createElement('li');
+    item.textContent = content;
+    messages.appendChild(item);
+
+    while (messages.children.length > MAX_MESSAGES) {
+      messages.removeChild(messages.firstChild);
+    }
+
+    window.scrollTo(0, document.body.scrollHeight);
+  };
+
+  if (nicknameForm) {
+    nicknameForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const value = nicknameInput.value.trim();
+      if (!value) {
+        nicknameInput.focus();
+        return;
+      }
+
+      nickname = value;
+      toggleChatControls(true);
+      nicknameForm.classList.add('hidden');
+
+      if (nicknameDisplay) {
+        nicknameDisplay.textContent = `Your nickname: ${nickname}`;
+        nicknameDisplay.classList.remove('hidden');
+      }
 
       if (input) {
-        input.addEventListener('input', () => updateMessageValidity(input.value));
-        updateMessageValidity(input.value);
+        input.focus();
       }
+    });
+  }
 
-      const toggleChatControls = (enabled) => {
-        if (input) {
-          input.disabled = !enabled;
-        }
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
 
-        if (sendButton) {
-          sendButton.disabled = !enabled;
-        }
-      };
-
-      toggleChatControls(false);
-
-      const appendMessage = (content) => {
-        const item = document.createElement('li');
-        item.textContent = content;
-        messages.appendChild(item);
-
-        while (messages.children.length > MAX_MESSAGES) {
-          messages.removeChild(messages.firstChild);
-        }
-
-        window.scrollTo(0, document.body.scrollHeight);
-      };
-
-      if (nicknameForm) {
-        nicknameForm.addEventListener('submit', (event) => {
-          event.preventDefault();
-
-          const value = nicknameInput.value.trim();
-          if (!value) {
-            nicknameInput.focus();
-            return;
-          }
-
-          nickname = value;
-          toggleChatControls(true);
-          nicknameForm.classList.add('hidden');
-
-          if (nicknameDisplay) {
-            nicknameDisplay.textContent = `Your nickname: ${nickname}`;
-            nicknameDisplay.classList.remove('hidden');
-          }
-
-          if (input) {
-            input.focus();
-          }
-        });
+    if (!nickname) {
+      if (nicknameInput) {
+        nicknameInput.focus();
       }
+      return;
+    }
 
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
+    if (!input) {
+      return;
+    }
 
-        if (!nickname) {
-          if (nicknameInput) {
-            nicknameInput.focus();
-          }
-          return;
-        }
+    if (input.value.length > getMaxMessageLength()) {
+      updateMessageValidity(input.value);
+      input.reportValidity();
+      return;
+    }
 
-        if (!input) {
-          return;
-        }
+    const text = input.value.trim();
+    if (!text) {
+      return;
+    }
 
-        if (input.value.length > MAX_MESSAGE_LENGTH) {
-          updateMessageValidity(input.value);
-          input.reportValidity();
-          return;
-        }
+    const clientOffset = `${socket.id}-${counter++}`;
+    socket.emit(
+      'chat message',
+      `${nickname}: ${text}`,
+      clientOffset,
+      (ack = {}) => {
+        if (!ack.ok) {
+          if (ack.error === 'MESSAGE_TOO_LONG') {
+            const fallbackLimit = getMaxMessageLength();
+            const limit =
+              typeof ack.limit === 'number' && ack.limit > 0
+                ? ack.limit
+                : fallbackLimit;
 
-        const text = input.value.trim();
-        if (!text) {
-          return;
-        }
-
-        const clientOffset = `${socket.id}-${counter++}`;
-        socket.emit(
-          'chat message',
-          `${nickname}: ${text}`,
-          clientOffset,
-          (ack = {}) => {
-            if (!ack.ok) {
-              if (ack.error === 'MESSAGE_TOO_LONG') {
-                const limit =
-                  typeof ack.limit === 'number'
-                    ? ack.limit
-                    : MAX_MESSAGE_LENGTH;
-
-                const message =
-                  `Message cannot exceed ${limit} characters.`;
-                setLimitWarning(message);
-
-                if (input) {
-                  input.setCustomValidity(message);
-                  input.reportValidity();
-                }
-              }
-
-              console.error('Message acknowledgement failed', ack);
-              return;
+            if (limit !== fallbackLimit) {
+              setMaxMessageLength(limit);
             }
 
-            if (typeof ack.serverOffset === 'number') {
-              socket.auth.serverOffset = ack.serverOffset;
+            const message = formatLimitMessage(limit);
+            setLimitWarning(message);
+
+            if (input) {
+              input.setCustomValidity(message);
+              input.reportValidity();
             }
           }
-        );
 
-        input.value = '';
-        updateMessageValidity('');
-      });
-
-      socket.on('chat message', (payload) => {
-        if (!payload || typeof payload !== 'object') {
+          console.error('Message acknowledgement failed', ack);
           return;
         }
 
-        const { id, content } = payload;
-        if (typeof content !== 'string') {
-          return;
+        if (typeof ack.serverOffset === 'number') {
+          socket.auth.serverOffset = ack.serverOffset;
         }
+      }
+    );
 
-        appendMessage(content);
+    input.value = '';
+    updateMessageValidity('');
+  });
 
-        if (typeof id === 'number') {
-          socket.auth.serverOffset = id;
-        }
-      });
-    </script>
+  socket.on('chat message', (payload) => {
+    if (!payload || typeof payload !== 'object') {
+      return;
+    }
+
+    const { id, content } = payload;
+    if (typeof content !== 'string') {
+      return;
+    }
+
+    appendMessage(content);
+
+    if (typeof id === 'number') {
+      socket.auth.serverOffset = id;
+    }
+  });
+
+  socket.on('config', (payload) => {
+    if (!payload || typeof payload !== 'object') {
+      return;
+    }
+
+    const { maxMessageLength } = payload;
+    if (Number.isInteger(maxMessageLength) && maxMessageLength > 0) {
+      setMaxMessageLength(maxMessageLength);
+    }
+  });
+</script>
+
   </body>
 </html>
