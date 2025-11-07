@@ -60,8 +60,3 @@ Kommandoen bygger imaget, starter tjenestene og kobler til nginx-proxien definer
 ## Resultat
 - Chat-applikasjonen kjører på en Ubuntu-server.
 - Hele CI/CD-kjeden er satt opp: hver kodeendring fører til automatisk utrulling uten manuelle steg.
-
-## Konklusjon og videre arbeid
-- Automatiseringen med Docker og GitHub Actions fjernet manuelle operasjoner og gjorde «push = deploy» til en realitet.
-- Den mest tidkrevende delen var å konfigurere self-hosted runner og Secrets, men prosessen er nå dokumentert og lett å gjenta.
-- Videre planlegges brukerautentisering, overvåking av kontainere og automatiske tester for chatten for å øke robustheten.
