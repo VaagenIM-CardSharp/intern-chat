@@ -19,6 +19,13 @@ const resolveDbPath = () => {
   return isAbsolute(customPath) ? customPath : join(__dirname, customPath);
 };
 
+const DEFAULT_MAX_MESSAGE_LENGTH = 280;
+const parsedMaxMessageLength = Number(process.env.MAX_MESSAGE_LENGTH);
+const MAX_MESSAGE_LENGTH =
+  Number.isFinite(parsedMaxMessageLength) && parsedMaxMessageLength > 0
+    ? Math.floor(parsedMaxMessageLength)
+    : DEFAULT_MAX_MESSAGE_LENGTH;
+
 const dbFilePath = resolveDbPath();
 
 const db = await open({
@@ -50,23 +57,50 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', async (socket) => {
-  socket.on('chat message', async (msg, clientOffset, callback) => {
-    const ack =
-      typeof callback === 'function'
-        ? callback
-        : () => {};
+    socket.on('chat message', async (msg, clientOffset, callback) => {
+      const ack =
+        typeof callback === 'function'
+          ? callback
+          : () => {};
 
-    try {
-      const result = await db.run(
-        'INSERT INTO messages (content, client_offset) VALUES (?, ?)',
-        msg,
-        clientOffset
-      );
+      if (typeof msg !== 'string') {
+        ack({
+          ok: false,
+          error: 'INVALID_MESSAGE_FORMAT'
+        });
+        return;
+      }
 
-      const payload = {
-        id: result.lastID,
-        content: msg
-      };
+      const sanitizedMessage = msg.trim();
+
+      if (!sanitizedMessage) {
+        ack({
+          ok: false,
+          error: 'EMPTY_MESSAGE'
+        });
+        return;
+      }
+
+      if (sanitizedMessage.length > MAX_MESSAGE_LENGTH) {
+        ack({
+          ok: false,
+          error: 'MESSAGE_TOO_LONG',
+          limit: MAX_MESSAGE_LENGTH
+        });
+        return;
+      }
+
+      try {
+        const result = await db.run(
+          'INSERT INTO messages (content, client_offset) VALUES (?, ?)',
+          sanitizedMessage,
+          clientOffset
+        );
+
+        const payload = {
+          id: result.lastID,
+          content: sanitizedMessage
+        };
 
       io.emit('chat message', payload);
       ack({ ok: true, serverOffset: result.lastID });

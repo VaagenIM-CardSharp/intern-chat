@@ -16,12 +16,13 @@
     </div>
     <ul id="messages"></ul>
     <form id="form" action="">
-      <input id="input" autocomplete="off" /><button>Send</button>
+      <input id="input" autocomplete="off" maxlength="240" /><button>Send</button>
     </form>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       let counter = 0;
       const MAX_MESSAGES = 500;
+      const MAX_TEXT_LENGTH = 240;
       let nickname = '';
 
       const socket = io({
@@ -101,6 +102,12 @@
 
         const text = input.value.trim();
         if (!text) {
+          return;
+        }
+
+        if (text.length > MAX_TEXT_LENGTH) {
+          input.value = text.slice(0, MAX_TEXT_LENGTH);
+          input.focus();
           return;
         }
 
