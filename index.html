@@ -15,15 +15,31 @@
       <div id="nickname-display" class="hidden"></div>
     </div>
     <ul id="messages"></ul>
+    <div
+      id="message-limit-warning"
+      class="limit-warning hidden"
+      role="alert"
+      aria-live="assertive"
+    ></div>
     <form id="form" action="">
-      <input id="input" autocomplete="off" maxlength="240" /><button>Send</button>
+      <input id="input" autocomplete="off" /><button>Send</button>
     </form>
+    <script src="/config.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       let counter = 0;
       const MAX_MESSAGES = 500;
-      const MAX_TEXT_LENGTH = 240;
+      const DEFAULT_MAX_MESSAGE_LENGTH = 500;
       let nickname = '';
+
+      const resolveMaxMessageLength = () => {
+        const fromConfig = window.__APP_CONFIG__?.maxMessageLength;
+        if (Number.isInteger(fromConfig) && fromConfig > 0) {
+          return fromConfig;
+        }
+
+        return DEFAULT_MAX_MESSAGE_LENGTH;
+      };
 
       const socket = io({
         ackTimeout: 10000,
@@ -40,6 +56,45 @@
       const nicknameInput = document.getElementById('nickname');
       const nicknameDisplay = document.getElementById('nickname-display');
       const sendButton = form?.querySelector('button');
+      const limitWarning = document.getElementById('message-limit-warning');
+      const MAX_MESSAGE_LENGTH = resolveMaxMessageLength();
+
+      const setLimitWarning = (message = '') => {
+        if (!limitWarning) {
+          return;
+        }
+
+        if (message) {
+          limitWarning.textContent = message;
+          limitWarning.classList.remove('hidden');
+        } else {
+          limitWarning.textContent = '';
+          limitWarning.classList.add('hidden');
+        }
+      };
+
+      const updateMessageValidity = (value = '') => {
+        if (!input) {
+          return;
+        }
+
+        const message =
+          `Message cannot exceed ${MAX_MESSAGE_LENGTH} characters.`;
+        const isTooLong = value.length > MAX_MESSAGE_LENGTH;
+
+        if (isTooLong) {
+          input.setCustomValidity(message);
+          setLimitWarning(message);
+        } else {
+          input.setCustomValidity('');
+          setLimitWarning('');
+        }
+      };
+
+      if (input) {
+        input.addEventListener('input', () => updateMessageValidity(input.value));
+        updateMessageValidity(input.value);
+      }
 
       const toggleChatControls = (enabled) => {
         if (input) {
@@ -100,14 +155,18 @@
           return;
         }
 
-        const text = input.value.trim();
-        if (!text) {
+        if (!input) {
           return;
         }
 
-        if (text.length > MAX_TEXT_LENGTH) {
-          input.value = text.slice(0, MAX_TEXT_LENGTH);
-          input.focus();
+        if (input.value.length > MAX_MESSAGE_LENGTH) {
+          updateMessageValidity(input.value);
+          input.reportValidity();
+          return;
+        }
+
+        const text = input.value.trim();
+        if (!text) {
           return;
         }
 
@@ -118,6 +177,22 @@
           clientOffset,
           (ack = {}) => {
             if (!ack.ok) {
+              if (ack.error === 'MESSAGE_TOO_LONG') {
+                const limit =
+                  typeof ack.limit === 'number'
+                    ? ack.limit
+                    : MAX_MESSAGE_LENGTH;
+
+                const message =
+                  `Message cannot exceed ${limit} characters.`;
+                setLimitWarning(message);
+
+                if (input) {
+                  input.setCustomValidity(message);
+                  input.reportValidity();
+                }
+              }
+
               console.error('Message acknowledgement failed', ack);
               return;
             }
@@ -129,6 +204,7 @@
         );
 
         input.value = '';
+        updateMessageValidity('');
       });
 
       socket.on('chat message', (payload) => {
