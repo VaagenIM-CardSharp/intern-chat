@@ -67,6 +67,64 @@ const MAX_MESSAGE_LENGTH = (() => {
   return numericValue;
 })();
 
+const DEFAULT_MAX_STORED_MESSAGES = 500;
+const rawMaxStoredMessages = process.env.MAX_STORED_MESSAGES;
+const hasCustomMaxStoredMessages =
+  rawMaxStoredMessages !== undefined &&
+  rawMaxStoredMessages !== null &&
+  String(rawMaxStoredMessages).trim() !== '';
+
+const MAX_STORED_MESSAGES = (() => {
+  if (!hasCustomMaxStoredMessages) {
+    return DEFAULT_MAX_STORED_MESSAGES;
+  }
+
+  const numericValue = Number(rawMaxStoredMessages);
+
+  if (!Number.isInteger(numericValue) || numericValue <= 0) {
+    console.error(
+      `Invalid MAX_STORED_MESSAGES value "${rawMaxStoredMessages}". Expected a positive integer.`
+    );
+    process.exit(1);
+  }
+
+  return numericValue;
+})();
+
+const pruneOldMessages = async () => {
+  if (!Number.isInteger(MAX_STORED_MESSAGES) || MAX_STORED_MESSAGES <= 0) {
+    return;
+  }
+
+  const offset = MAX_STORED_MESSAGES - 1;
+  if (offset < 0) {
+    return;
+  }
+
+  const cutoffRow = await db.get(
+    `
+      SELECT id
+      FROM messages
+      ORDER BY id DESC
+      LIMIT 1
+      OFFSET ?
+    `,
+    offset
+  );
+
+  if (!cutoffRow || typeof cutoffRow.id !== 'number') {
+    return;
+  }
+
+  await db.run('DELETE FROM messages WHERE id < ?', cutoffRow.id);
+};
+
+try {
+  await pruneOldMessages();
+} catch (startupPruneError) {
+  console.error('Failed to prune old messages on startup', startupPruneError);
+}
+
 app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
@@ -115,6 +173,15 @@ io.on('connection', async (socket) => {
 
       io.emit('chat message', payload);
       ack({ ok: true, serverOffset: result.lastID });
+
+      try {
+        await pruneOldMessages();
+      } catch (cleanupError) {
+        console.error('Failed to prune old messages after insert', {
+          error: cleanupError,
+          lastInsertedId: result.lastID
+        });
+      }
     } catch (e) {
       if (e.errno === 19 /* SQLITE_CONSTRAINT */) {
         try {
@@ -166,9 +233,10 @@ io.on('connection', async (socket) => {
           FROM messages
           WHERE id > ?
           ORDER BY id ASC
-          LIMIT 500
+          LIMIT ?
         `,
-        serverOffset
+        serverOffset,
+        MAX_STORED_MESSAGES
       );
 
       for (const row of rows) {
