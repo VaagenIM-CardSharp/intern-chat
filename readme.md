@@ -81,8 +81,3 @@ Kommandoen bygger imaget, starter tjenestene og kobler til nginx-proxien definer
   - `gjøre rede for hensikten med teknisk dokumentasjon og utarbeide teknisk dokumentasjon for IT-løsninger` – README fungerer som teknisk dokumentasjon for arkitektur, bygg og drift.
   - `beskrive og anvende relevante versjonskontrollsystemer i utviklingsprosjekter` – GitHub-repoet dokumenterer hvordan commits trigger bygg og deploy via workflow-filen.
   - `modellere og opprette databaser for informasjonsflyt i systemer` – SQLite-databasen (`chat.db`) og migrasjonene i `index.js` viser hvordan meldingshistorikken lagres og vedlikeholdes.
-
-## Konklusjon og videre arbeid
-- Automatiseringen med Docker og GitHub Actions eliminerer manuelle utrullinger og etablerer en fast prosess for «push = deploy».
-- Konfigurering av self-hosted runner og Secrets var mest tidkrevende, men dokumentasjonen gjør prosessen repeterbar.
-- Videre arbeid omfatter autentisering av brukere, overvåking av kontainere og automatiske tester av chatten for å styrke robustheten.
