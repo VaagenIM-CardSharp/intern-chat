@@ -1,41 +1,41 @@
-# Automatisering av utrulling av nettstedet med Docker og GitHub Actions
+﻿# Automatisering av utrulling av nettstedet med Docker og GitHub Actions
 
 ## Prosjektbeskrivelse
-Det ble laget en nettapplikasjon – en chat bygget på Node.js med Socket.IO og SQLite-database. Applikasjonen lar brukere utveksle meldinger i sanntid via nettleseren, mens chat-historikken lagres lokalt i SQLite.
+Prosjektet implementerer en nettbasert chat bygget på Node.js, Socket.IO og SQLite. Løsningen gjør det mulig å utveksle meldinger i sanntid gjennom nettleseren, mens meldingshistorikken lagres lokalt i SQLite.
 
 ## Mål
-Sikre at chat-applikasjonen deployes automatisk på serveren hver gang koden i GitHub-repositoriet endres.
+Målet er å sikre at chat-applikasjonen oppdateres automatisk på serveren hver gang koden i GitHub-repositoriet endres.
 
 ## Arbeidsflyt
 1. **Opprettelse av prosjektet**
-   - Server- og klientkode for chatten er utviklet i Node.js + Socket.IO.
-   - Applikasjonen er pakket i en Docker-kontainer.
+   - Server- og klientkode ble utviklet i Node.js og Socket.IO.
+   - Applikasjonen ble pakket i en Docker-kontainer for enkel utrulling.
 
 2. **Docker-konfigurasjon på serveren (Ubuntu)**
-   - Docker er installert, og brukeren er lagt til i `docker`-gruppen.
-   - Kontainerne ble verifisert med kommandoen `docker ps`.
+   - Docker ble installert, og en bruker ble lagt til i `docker`-gruppen.
+   - Kontainerdriften ble kontrollert med kommandoen `docker ps`.
 
 3. **Oppsett av GitHub Actions workflow**
-   - Filen `.github/workflows/deploy.yml` ble lagt til i repoet.
-   - Workflowen bygger Docker-image, publiserer det til GitHub Container Registry (GHCR) og ruller det ut på serveren.
+   - Filen `.github/workflows/deploy.yml` ble lagt inn i repoet.
+   - Workflowen bygger Docker-image, publiserer til GitHub Container Registry (GHCR) og oppdaterer serveren.
 
 4. **Legge til en self-hosted runner på serveren**
    - GitHub Actions Runner ble lastet ned og installert.
-   - Følgende kommandoer ble kjørt:
+   - Følgende kommandoer ble benyttet:
      ```
      ./config.sh --url https://github.com/<repo-navn> --token <token>
      sudo ./svc.sh install
      sudo ./svc.sh start
      ```
-   - Runner-statusen er verifisert som `active (running)`.
+   - Runneren ble verifisert med statusen `active (running)`.
 
 5. **Konfigurasjon av GitHub Secrets**
-   - Miljøvariabler lagt til: `GHCR_TOKEN`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH`, `DEPLOY_SSH_KEY`.
+   - Miljøvariablene `GHCR_TOKEN`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH` og `DEPLOY_SSH_KEY` ble lagt til for å håndtere nøkler og tilkoblingsdata.
 
 6. **Testing av deploy-prosessen**
-   - Ved `git push` til `main` starter GitHub Actions bygg og utrulling.
-   - En ny Docker-kontainer startes automatisk på serveren.
-   - Etter testing med klassekamerater ble det innført en grense på 500 tegn per melding (kan endres via `MAX_MESSAGE_LENGTH`), og klienten håndterer nå feilen riktig når grensen overskrides.
+   - `git push` til `main` utløser bygg og utrulling via GitHub Actions.
+   - En ny Docker-kontainer startes automatisk på serveren etter fullført workflow.
+   - Testingen med klassekamerater avdekket behovet for en grense på 500 tegn per melding. Løsningen ble implementert via `MAX_MESSAGE_LENGTH`, og klienten viser nå feilmelding dersom grensen overskrides.
 
 ## Prosjektstruktur og oppstart
 
@@ -60,24 +60,29 @@ docker compose up --build -d
 Kommandoen bygger imaget, starter tjenestene og kobler til nginx-proxien definert i `docker-compose.yml`.
 
 ## Resultat
-- Chat-applikasjonen kjører på en Ubuntu-server.
-- Hele CI/CD-kjeden er satt opp: hver kodeendring fører til automatisk utrulling uten manuelle steg.
+- Chat-applikasjonen er i drift på en Ubuntu-server.
+- Hele CI/CD-kjeden er konfigurert slik at hver kodeendring utløser automatisk utrulling uten manuelle steg.
 
 ## Kompetansemål
-- **Driftsstøtte**: Prosjektet dekker sentrale oppgaver innen planlegging, drift og sikring av tjenester.
-  - `utforske og beskrive komponenter i en driftsarkitektur` – Docker-compose, nginx-proxy og self-hosted runner er dokumentert i README, slik at arkitekturen mellom klient, server, database og CI/CD er tydelig beskrevet.
-  - `planlegge og dokumentere arbeidsprosesser og IT-løsninger` – README viser stegvis prosess for bygging, utrulling og feilhåndtering, noe som fungerer som driftsdokumentasjon.
-  - `gjøre rede for prinsipper og strukturer for skytjenester og virtuelle tjenester` – Publisering av Docker-images til GHCR og bruk av virtuelle containere på Ubuntu-server demonstrerer praktisk forståelse av virtuelle tjenester.
-  - `planlegge, drifte og implementere IT-løsninger som ivaretar informasjonssikkerhet og gjeldende regelverk for personvern` – Bruk av GitHub Secrets og miljøvariabler beskytter nøkler og tilgangsdata gjennom hele pipeline.
+- **Driftsstøtte**: Beskrivelsen av infrastrukturen viser hvordan løsningen driftes og sikres.
+  - `utforske og beskrive komponenter i en driftsarkitektur` – README dokumenterer Docker-compose, nginx-proxy, serverkomponenter og self-hosted runner, og gir en strukturert oversikt over samspillet mellom klient, server, database og CI/CD.
+  - `planlegge og dokumentere arbeidsprosesser og IT-løsninger` – Seksjonen om arbeidsflyt beskriver planlagte steg for bygging, utrulling og feilhåndtering og fungerer som driftsdokumentasjon.
+  - `gjøre rede for prinsipper og strukturer for skytjenester og virtuelle tjenester` – Bruken av Docker-containere og publisering til GHCR viser hvordan virtuelle tjenester etableres og distribueres.
+  - `planlegge, drifte og implementere IT-løsninger som ivaretar informasjonssikkerhet og gjeldende regelverk for personvern` – Secrets i GitHub og miljøvariabler brukes til å beskytte nøkler og tilkoblingsdata i pipeline.
 
-- **Brukerstøtte**: Løsningen er testet på ekte brukere, og dokumentasjonen hjelper andre å ta den i bruk.
-  - `utøve brukerstøtte og veilede i relevant programvare` – README gir klare instruksjoner for lokal kjøring og Docker-oppstart slik at nye brukere kan sette opp løsningen uten hjelp.
-  - `kartlegge behovet for og utvikle veiledninger for brukere og kunder` – Tilbakemeldinger fra klassekamerater førte til begrensning på 500 tegn og forklaringer på hvordan klienten håndterer overliggende meldinger.
-  - `bruke og administrere samhandlingsverktøy som effektiviserer samarbeid og deling av informasjon` – GitHub brukes aktivt til versjonskontroll, issues og CI/CD, noe som sikrer kontinuerlig deling av status og endringer.
-  - `beskrive og bruke rammeverk for kvalitetssikring av IT-drift` – GitHub Actions fungerer som automatisert kvalitetskontroll ved hver push, med faste steg for bygg, publisering og deploy.
+- **Brukerstøtte**: Testingen og dokumentasjonen fokuserer på tydelige instruksjoner og oppfølging av brukernes behov.
+  - `utøve brukerstøtte og veilede i relevant programvare` – Instruksjonene for lokal kjøring og Docker-oppstart gjør det mulig for nye brukere å sette opp systemet uten ytterligere bistand.
+  - `kartlegge behovet for og utvikle veiledninger for brukere og kunder` – Tilbakemeldinger fra klassekamerater førte til innføring av begrensning på 500 tegn og beskrivelser av feilhåndteringen i klienten.
+  - `bruke og administrere samhandlingsverktøy som effektiviserer samarbeid og deling av informasjon` – GitHub benyttes til versjonskontroll, issues og CI/CD, noe som gir kontinuerlig deling av status og endringer.
+  - `beskrive og bruke rammeverk for kvalitetssikring av IT-drift` – GitHub Actions fungerer som et kvalitetssikringsrammeverk ved å kjøre faste bygge- og deploy-steg ved hver push.
 
-- **Utvikling**: Koden dekker hele utviklingsløpet fra krav til database og distribusjon.
-  - `lage og begrunne funksjonelle krav til en IT-løsning basert på behovskartlegging` – Prosjektet adresserer behovet for sanntidssamtaler og automatisk utrulling, formulert i mål- og arbeidsflytseksjonene.
+- **Utvikling**: Koden og dokumentasjonen dekker krav, versjonskontroll og databasedesign.
+  - `lage og begrunne funksjonelle krav til en IT-løsning basert på behovskartlegging` – Mål- og arbeidsflytseksjonene beskriver behovet for sanntidschat og automatisert utrulling, og viser hvordan kravene ble oversatt til løsning.
   - `gjøre rede for hensikten med teknisk dokumentasjon og utarbeide teknisk dokumentasjon for IT-løsninger` – README fungerer som teknisk dokumentasjon for arkitektur, bygg og drift.
-  - `beskrive og anvende relevante versjonskontrollsystemer i utviklingsprosjekter` – GitHub-repoet med workflows viser hvordan commits trigger bygg og deploy.
-  - `modellere og opprette databaser for informasjonsflyt i systemer` – SQLite-databasen (`chat.db`) lagrer meldingshistorikk, med tabellstruktur og opprydding implementert i `index.js`.
+  - `beskrive og anvende relevante versjonskontrollsystemer i utviklingsprosjekter` – GitHub-repoet dokumenterer hvordan commits trigger bygg og deploy via workflow-filen.
+  - `modellere og opprette databaser for informasjonsflyt i systemer` – SQLite-databasen (`chat.db`) og migrasjonene i `index.js` viser hvordan meldingshistorikken lagres og vedlikeholdes.
+
+## Konklusjon og videre arbeid
+- Automatiseringen med Docker og GitHub Actions eliminerer manuelle utrullinger og etablerer en fast prosess for «push = deploy».
+- Konfigurering av self-hosted runner og Secrets var mest tidkrevende, men dokumentasjonen gjør prosessen repeterbar.
+- Videre arbeid omfatter autentisering av brukere, overvåking av kontainere og automatiske tester av chatten for å styrke robustheten.
