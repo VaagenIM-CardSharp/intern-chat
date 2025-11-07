@@ -21,14 +21,16 @@ jobs:
 
       - name: Build Docker image
         run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           docker build \
-            -t ghcr.io/${{ github.repository_owner }}/intern-chat:latest \
+            -t ghcr.io/$owner/intern-chat:latest \
             --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
             .
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/${{ github.repository_owner }}/intern-chat:latest
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          docker push ghcr.io/$owner/intern-chat:latest
 
   deploy:
     needs: build-and-push
@@ -44,7 +46,9 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
+            owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
             docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GHCR_TOKEN }}
-            docker pull ghcr.io/${{ github.repository_owner }}/intern-chat:latest
+            docker pull ghcr.io/$owner/intern-chat:latest
             docker compose down
             docker compose up -d
+
