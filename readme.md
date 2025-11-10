@@ -1,5 +1,5 @@
 ﻿# Automatisering av utrulling av nettstedet med Docker og GitHub Actions
-
+(https://internchat.it4.iktim.no/)
 ## Prosjektbeskrivelse
 Prosjektet implementerer en nettbasert chat bygget på Node.js, Socket.IO og SQLite. Løsningen gjør det mulig å utveksle meldinger i sanntid gjennom nettleseren, mens meldingshistorikken lagres lokalt i SQLite.
 
